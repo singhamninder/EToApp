@@ -1,0 +1,176 @@
+import streamlit as st
+import pandas as pd
+import pyeto
+import matplotlib.pyplot as plt
+import pickle
+
+def plot_results(df):
+    fig, ax = plt.subplots()
+    if 'Eto' in df.columns:
+        ax.plot(doy, df['Eto'], 'o', label = '$ET_{o}$')
+        ax.plot(doy, EThs, linewidth=2, label = '$ET_{HS}$')
+        ax.plot(doy, y_pred, linewidth=2, ls ='--', label = model)
+        ax.legend(prop={'size': 13})
+        fig.supxlabel('DOY', size = 14)
+        fig.supylabel('$ET{_{o}} [mm d{^{-1}}$]', size = 16, weight='bold')
+    else:
+        ax.plot(doy, EThs, linewidth=2, label = '$ET_{HS}$')
+        ax.plot(doy, y_pred, linewidth=2, ls ='--', label = model)
+        ax.legend(prop={'size': 13})
+        fig.supxlabel('DOY', size = 14)
+        fig.supylabel('$ET{_{o}} [mm d{^{-1}}$]', size = 16, weight='bold')
+    return fig
+
+st.title('$ET_{o}$ Estimation using Machine Learning')
+with st.sidebar:
+    st.subheader('1. Upload your CSV file')
+    uploaded_file = st.file_uploader("Make sure coloumns are named - Date, Tmin, Tmax, Tav, RH, and U", type=["csv"],
+             help='File should atleast have columns - Date, Tmin, Tmax, and Tav')
+    st.markdown('If available, you can also add referece evapotranspiration ($ET_{o}$) column. \
+                Make sure to name it as Eto')
+
+    st.subheader('2. Enter Latitude and Longitude [decimal degrees]')
+    st.markdown('> 📝Do not leave these values to default, that will result in erroneous calculations')
+    lat = st.number_input('Lat', value=33.964942, format ='%.3f')
+    lon = st.number_input('Long', format ='%.3f', value=-117.33698)
+    st.write('Current selection is ', lat, lon)
+    location =pd.DataFrame(
+    {'latitude': [lat],
+     'longitude': [lon]})
+    st.map(location, zoom=10)
+
+st.subheader('Dataset')
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+    df['Date'] = pd.to_datetime(df['Date'])
+    st.markdown('**Glimpse of your dataset**')
+    st.write(df)
+    if set(['Tmin','Tmax', 'Tav','RH', 'U']).issubset(df.columns):
+        st.success('All Required Columns are present')
+        models = (['ANN_T', 'ANN_all'])
+    elif set(['Tmin','Tmax', 'Tav']).issubset(df.columns):
+        st.success('Temperature Columns are present')
+        models = (['ANN_T'])
+    else:
+        st.error('Please make sure required columns are present and are named correctly')
+    
+    lat_r = pyeto.deg2rad(lat) # Convert latitude to radians
+    doy = [d.timetuple().tm_yday for d in df.Date] # Day of the Year
+
+    sol_dec = [pyeto.sol_dec(y) for y in doy]     #Solar declination
+    ird = [pyeto.inv_rel_dist_earth_sun(y) for y in doy] #inverse relative distance Earth-Sun
+    sha = [pyeto.sunset_hour_angle(lat_r,s) for s in sol_dec]  #sunset hour angle
+
+    Ra = [] #Extraterrestrial radiation [MJ m-2 day-1] 
+    for (i, j, k) in zip (sol_dec, sha, ird):
+            Ra.append(pyeto.et_rad(lat_r, i, j, k))
+
+    EThs = [] #ET predicted by Hargreaves and Samani eq, Reference evapotranspiration over grass (ETo) [mm day-1]
+    for (aa, bb, cc, ra) in zip (df['Tmin'], df['Tmax'], df['Tav'], Ra):
+        EThs.append(pyeto.hargreaves(aa, bb, cc, ra))
+
+    st.header('Fit the Model')
+    import tensorflow as tf
+    model = st. selectbox('Select Model', models)
+    if model == 'ANN_T':
+        ANN_T = tf.keras.models.load_model('ANN_T.h5')
+        scalerT = pickle.load(open('annT_scaler.pkl', 'rb'))
+        #multiplied y 0.408 to convert Ra to mm/d
+        features = pd.concat([df[['Tmin','Tmax', 'Tav']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
+        features = scalerT.transform(features)
+        y_pred = ANN_T.predict(features)
+        st.markdown('**Results for your data**')
+        fig = plot_results(df)
+        st.pyplot(fig)
+        st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
+        results=pd.concat([df['Date'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
+        st.write(results)
+        csv = results.to_csv(index=False)
+        st.download_button("Download Results", csv, "file.csv",
+                    "text/csv", key='download-csv')
+
+    elif model == 'ANN_all':
+        ANN_all = tf.keras.models.load_model('ANN_all.h5')
+        scalerAll = pickle.load(open('annAll_scaler.pkl', 'rb'))
+        #multiplied y 0.408 to convert Ra to mm/d
+        features = pd.concat([df[['Tmin','Tmax', 'Tav','RH', 'U']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
+        features = scalerAll.transform(features)
+        y_pred = ANN_all.predict(features)
+        st.markdown('**Results for your data**')
+        fig = plot_results(df)
+        st.pyplot(fig)
+        st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
+        results=pd.concat([df['Date'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
+        st.write(results)
+        csv = results.to_csv(index=False)
+        st.download_button("Download Results", csv, "file.csv",
+                    "text/csv", key='download-csv')
+
+else:
+    st.info('Awaiting for CSV file to be uploaded.')
+    if st.button('Press to use Demo Data'):
+        df = pd.read_csv('demo.csv')
+        df['Date'] = pd.to_datetime(df['Date'])
+        st.markdown('**Displaying the Demo dataset**')
+        st.write(df)
+        if set(['Tmin','Tmax', 'Tav','RH', 'U']).issubset(df.columns):
+            st.success('All Required Columns are present')
+            models = (['ANN_T', 'ANN_all'])
+        elif set(['Tmin','Tmax', 'Tav']).issubset(df.columns):
+            st.success('Temperature Columns are present')
+            models = (['ANN_T'])
+        else:
+            st.error('Please make sure required columns are present and are named correctly')
+
+        lat_r = pyeto.deg2rad(lat) # Convert latitude to radians
+        doy = [d.timetuple().tm_yday for d in df.Date] # Day of the Year
+        sol_dec = [pyeto.sol_dec(y) for y in doy]     #Solar declination
+        ird = [pyeto.inv_rel_dist_earth_sun(y) for y in doy] #inverse relative distance Earth-Sun
+        sha = [pyeto.sunset_hour_angle(lat_r,s) for s in sol_dec]  #sunset hour angle
+        Ra = [] #Extraterrestrial radiation [MJ m-2 day-1] 
+        for (i, j, k) in zip (sol_dec, sha, ird):
+                Ra.append(pyeto.et_rad(lat_r, i, j, k))
+        EThs = [] #ET predicted by Hargreaves and Samani eq, Reference evapotranspiration over grass (ETo) [mm day-1]
+        for (aa, bb, cc, ra) in zip (df['Tmin'], df['Tmax'], df['Tav'], Ra):
+            EThs.append(pyeto.hargreaves(aa, bb, cc, ra))
+
+        st.header('Fit the Model')
+        import tensorflow as tf
+        model = st. selectbox('Select Model', models)
+        if model == 'ANN_T':
+            ANN_T = tf.keras.models.load_model('ANN_T.h5')
+            scalerT = pickle.load(open('annT_scaler.pkl', 'rb'))
+            #multiplied y 0.408 to convert Ra to mm/d
+            features = pd.concat([df[['Tmin','Tmax', 'Tav']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
+            features = scalerT.transform(features)
+            y_pred = ANN_T.predict(features)
+            st.markdown('**Results for your data**')
+            fig = plot_results(df)
+            st.pyplot(fig)
+            st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
+        
+            results=pd.concat([df['Date'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
+            st.write(results)
+            csv = results.to_csv(index=False)
+            st.download_button("Download Results", csv, "file.csv",
+                        "text/csv", key='download-csv')
+
+        elif model == 'ANN_all':
+            ANN_all = tf.keras.models.load_model('ANN_all.h5')
+            scalerAll = pickle.load(open('annAll_scaler.pkl', 'rb'))
+            #multiplied y 0.408 to convert Ra to mm/d
+            features = pd.concat([df[['Tmin','Tmax', 'Tav','RH', 'U']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
+            features = scalerAll.transform(features)
+            y_pred = ANN_all.predict(features)
+
+            st.markdown('**Results for your data**')
+            fig = plot_results(df)
+            st.pyplot(fig)
+            st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
+
+            results=pd.concat([df['Date'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
+            st.write(results)
+            csv = results.to_csv(index=False)
+            st.download_button("Download Results", csv, "file.csv",
+                        "text/csv", key='download-csv')
+
