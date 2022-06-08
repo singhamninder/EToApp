@@ -22,8 +22,7 @@ def plot_results(df):
     return fig
 
 def split_sequences(sequences, n_steps):
-    '''Function to convert input timeseries to lag observations .i.e multiple samples with specified number of timesteps,
-    and output(ETo) is a single timestep'''
+    '''Function to convert input timeseries to lag observations .i.e multiple samples with specified number of timesteps'''
     X= []
     for i in range(len(sequences)):
         end_ix = i + n_steps
