@@ -4,3 +4,4 @@ PyETo @ git+https://github.com/woodcrafty/PyETo.git@0b7ac9f149f4c89c5b5759a87501
 streamlit==1.10.0
 tensorflow==2.9.1
 scikit-learn==1.1.1
+msilib
