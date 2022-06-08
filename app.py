@@ -226,7 +226,6 @@ if uploaded_file is not None:
         st.download_button("Download Results", csv, "file.csv",
                     "text/csv", key='download-csv')
     
-
 else:
     st.info('Awaiting for CSV file to be uploaded.')
     if st.button('Press to use Demo Data'):
@@ -266,32 +265,11 @@ else:
             features = scalerT.transform(features)
             y_pred = ANN_T.predict(features)
             st.markdown('**Results for demo data**')
-            fig = plot_results(df)
+            results=pd.concat([df['Date'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
+            fig = plot_results(results)
             st.pyplot(fig)
             st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
-        
-            results=pd.concat([df['Date'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
             st.write(results)
             csv = results.to_csv(index=False)
             st.download_button("Download Results", csv, "file.csv",
                         "text/csv", key='download-csv')
-
-        elif model == 'ANN_all':
-            ANN_all = tf.keras.models.load_model('ANN_all.h5')
-            scalerAll = pickle.load(open('annAll_scaler.pkl', 'rb'))
-            #multiplied y 0.408 to convert Ra to mm/d
-            features = pd.concat([df[['Tmin','Tmax', 'Tav','RH', 'U']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
-            features = scalerAll.transform(features)
-            y_pred = ANN_all.predict(features)
-
-            st.markdown('**Results for your data**')
-            fig = plot_results(df)
-            st.pyplot(fig)
-            st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
-
-            results=pd.concat([df['Date'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
-            st.write(results)
-            csv = results.to_csv(index=False)
-            st.download_button("Download Results", csv, "file.csv",
-                        "text/csv", key='download-csv')
-
