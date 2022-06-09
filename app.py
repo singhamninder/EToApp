@@ -3,21 +3,27 @@ import pandas as pd
 import numpy as np
 import pyeto
 import matplotlib.pyplot as plt
+from matplotlib.dates import DateFormatter, AutoDateLocator
 import pickle
 
 def plot_results(df):
     fig, ax = plt.subplots()
     if 'Eto' in df.columns:
-        ax.plot([d.timetuple().tm_yday for d in df.Date], df['Eto'], 'o', label = '$ET_{o}$')
-        ax.plot([d.timetuple().tm_yday for d in df.Date], df['EThs'], linewidth=2, label = '$ET_{HS}$')
-        ax.plot([d.timetuple().tm_yday for d in df.Date], df[model], linewidth=2, ls ='--', label = model)
+        ax.plot(df['Date'], df['Eto'], 'o', alpha=0.6, label = '$ET_{o}$')
+        ax.plot(df['Date'], df['EThs'], 'o:', alpha=0.7, linewidth=2, label = '$ET_{HS}$')
+        ax.plot(df['Date'], df[model], linewidth=2, ls ='--', label = model)
         ax.legend(prop={'size': 13})
+        ax.grid(True,linestyle='--')
+        ax.xaxis.set_major_formatter(DateFormatter('%d\n%b\n%Y'))
+        ax.xaxis.set_major_locator(AutoDateLocator())
     else:
-        ax.plot([d.timetuple().tm_yday for d in df.Date], df['EThs'], linewidth=2, label = '$ET_{HS}$')
-        ax.plot([d.timetuple().tm_yday for d in df.Date], df[model], linewidth=2, ls ='--', label = model)
+        ax.plot(df['Date'], df['EThs'], 'o:', alpha=0.7, linewidth=2, label = '$ET_{HS}$')
+        ax.plot(df['Date'], df[model], linewidth=2, ls ='--', label = model)
         ax.legend(prop={'size': 13})
-    fig.supxlabel('DOY', size = 14)
-    fig.supylabel('$ET{_{o}} [mm d{^{-1}}$]', size = 16, weight='bold')
+        ax.grid(True,linestyle='--')
+        ax.xaxis.set_major_formatter(DateFormatter('%d\n%b\n%Y'))
+        ax.xaxis.set_major_locator(AutoDateLocator())
+    fig.supylabel('$ET{_{o}}$ $[mm d{^{-1}}$]', size = 16, weight='bold')
     return fig
 
 def split_sequences(sequences, n_steps):
@@ -117,7 +123,6 @@ if uploaded_file is not None:
         features = scalerAll.transform(features)
         y_pred = ANN_all.predict(features)
         st.markdown('**Results for your data**')
-        st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
         if 'Eto' in df.columns:
             results=pd.concat([df['Date'], df['Eto'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
         else:
