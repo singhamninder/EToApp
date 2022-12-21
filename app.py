@@ -37,7 +37,7 @@ def split_sequences(sequences, n_steps):
         X.append(seq_x)
     return np.array(X)
 
-st.title('$ET_{o}$ Estimation using Machine Learning')
+st.title('$ET_{o}$ Estimation using Deep Learning')
 with st.sidebar:
     st.subheader('1. Upload your CSV file')
     uploaded_file = st.file_uploader("Make sure coloumns are named - Date, Tmin, Tmax, Tav, RH, and U", type=["csv"],
