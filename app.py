@@ -1,43 +1,13 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import pyeto
-import matplotlib.pyplot as plt
-from matplotlib.dates import DateFormatter, AutoDateLocator
-import pickle
+from utils import *
 
-def plot_results(df):
-    fig, ax = plt.subplots()
-    if 'Eto' in df.columns:
-        ax.plot(df['Date'], df['Eto'], 'o', alpha=0.6, label = '$ET_{o}$')
-        ax.plot(df['Date'], df['EThs'], 'o:', alpha=0.7, linewidth=2, label = '$ET_{HS}$')
-        ax.plot(df['Date'], df[model], linewidth=2, ls ='--', label = model)
-        ax.legend(prop={'size': 13})
-        ax.grid(True,linestyle='--')
-        ax.xaxis.set_major_formatter(DateFormatter('%d\n%b\n%Y'))
-        ax.xaxis.set_major_locator(AutoDateLocator())
-    else:
-        ax.plot(df['Date'], df['EThs'], 'o:', alpha=0.7, linewidth=2, label = '$ET_{HS}$')
-        ax.plot(df['Date'], df[model], linewidth=2, ls ='--', label = model)
-        ax.legend(prop={'size': 13})
-        ax.grid(True,linestyle='--')
-        ax.xaxis.set_major_formatter(DateFormatter('%d\n%b\n%Y'))
-        ax.xaxis.set_major_locator(AutoDateLocator())
-    fig.supylabel('$ET{_{o}}$ $[mm d{^{-1}}$]', size = 16, weight='bold')
-    return fig
-
-def split_sequences(sequences, n_steps):
-    '''Function to convert input timeseries to lag observations .i.e multiple samples with specified number of timesteps'''
-    X= []
-    for i in range(len(sequences)):
-        end_ix = i + n_steps
-        if end_ix > len(sequences):
-            break
-        seq_x = sequences[i:end_ix, :]
-        X.append(seq_x)
-    return np.array(X)
-
-st.title('$ET_{o}$ Estimation using Deep Learning')
+st.title('**deepET** - $ET_{o}$ Estimation using Deep Learning')
+st.markdown("""This application makes estimations of reference evapotranspiration ($ET_o$) using deep learning models,
+            using the data uploaded by the user with daily temperature as inputs.
+            The application allows the user to select a model and provides predictions and visualizations based on the selected model.
+            The code loads pre-trained models, prepares input features, makes predictions, and displays the results.
+             It also provides a download button to download the results as a CSV file.
+            """)
+st.markdown('> **Units for Columns**: Tmin, Tmax, and Ta are in [$°C$], Relative Humidity, RH [$%$], daily average windspeed, U [$m s^{-1}$].')
 with st.sidebar:
     st.subheader('1. Upload your CSV file')
     uploaded_file = st.file_uploader("Make sure coloumns are named - Date, Tmin, Tmax, Tav, RH, and U", type=["csv"],
@@ -96,8 +66,8 @@ if uploaded_file is not None:
     import tensorflow as tf
     model = st. selectbox('Select Model', models)
     if model == 'ANN_T':
-        ANN_T = tf.keras.models.load_model('ANN_T.h5')
-        scalerT = pickle.load(open('annT_scaler.pkl', 'rb'))
+        ANN_T = tf.keras.models.load_model('model/ANN_T.h5')
+        scalerT = pickle.load(open('scaler/annT_scaler.pkl', 'rb'))
         #multiplied y 0.408 to convert Ra to mm/d
         features = pd.concat([df[['Tmin','Tmax', 'Tav']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
         features = scalerT.transform(features)
@@ -107,7 +77,7 @@ if uploaded_file is not None:
             results=pd.concat([df['Date'], df['Eto'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
         else:
             results=pd.concat([df['Date'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
-        fig = plot_results(results)
+        fig = plot_results(results,model)
         st.pyplot(fig)
         st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
         st.write(results)
@@ -116,8 +86,8 @@ if uploaded_file is not None:
                     "text/csv", key='download-csv')
 
     elif model == 'ANN_all':
-        ANN_all = tf.keras.models.load_model('ANN_all.h5')
-        scalerAll = pickle.load(open('annAll_scaler.pkl', 'rb'))
+        ANN_all = tf.keras.models.load_model('model/ANN_all.h5')
+        scalerAll = pickle.load(open('scaler/annAll_scaler.pkl', 'rb'))
         #multiplied y 0.408 to convert Ra to mm/d
         features = pd.concat([df[['Tmin','Tmax', 'Tav','RH', 'U']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
         features = scalerAll.transform(features)
@@ -127,7 +97,7 @@ if uploaded_file is not None:
             results=pd.concat([df['Date'], df['Eto'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
         else:
             results=pd.concat([df['Date'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
-        fig = plot_results(results)
+        fig = plot_results(results,model)
         st.pyplot(fig)
         st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
         st.write(results)
@@ -136,8 +106,8 @@ if uploaded_file is not None:
                     "text/csv", key='download-csv')
 
     elif model == 'LSTM_T':
-        LSTM_T = tf.keras.models.load_model('lstm_T.h5')
-        scalerT = pickle.load(open('lstmT_scaler.pkl', 'rb'))
+        LSTM_T = tf.keras.models.load_model('model/lstm_T.h5')
+        scalerT = pickle.load(open('scaler/lstmT_scaler.pkl', 'rb'))
         #multiplied y 0.408 to convert Ra to mm/d
         features = pd.concat([df[['Tmin','Tmax', 'Tav']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
         features = split_sequences(features, n_steps=30)
@@ -151,7 +121,7 @@ if uploaded_file is not None:
         else:
             results=pd.concat([df['Date'][29:].reset_index(drop=True),
                     pd.DataFrame(EThs[29:], columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
-        fig = plot_results(results)
+        fig = plot_results(results,model)
         st.pyplot(fig)
         st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
         st.write(results)
@@ -160,8 +130,8 @@ if uploaded_file is not None:
                     "text/csv", key='download-csv')
 
     elif model == 'LSTM_all':
-        LSTM_all = tf.keras.models.load_model('lstm_all.h5')
-        scalerAll = pickle.load(open('lstmAll_scaler.pkl', 'rb'))
+        LSTM_all = tf.keras.models.load_model('model/lstm_all.h5')
+        scalerAll = pickle.load(open('scaler/lstmAll_scaler.pkl', 'rb'))
         #multiplied y 0.408 to convert Ra to mm/d
         features = pd.concat([df[['Tmin','Tmax', 'Tav','RH', 'U']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
         features = split_sequences(features, n_steps=30)
@@ -174,7 +144,7 @@ if uploaded_file is not None:
         else:
             results=pd.concat([df['Date'][29:].reset_index(drop=True),
                     pd.DataFrame(EThs[29:], columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
-        fig = plot_results(results)
+        fig = plot_results(results,model)
         st.pyplot(fig)
         st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
         st.write(results)
@@ -183,8 +153,8 @@ if uploaded_file is not None:
                     "text/csv", key='download-csv')
     
     elif model == 'CNN_T':
-        CNN_T = tf.keras.models.load_model('cnn_T.h5')
-        scalerT = pickle.load(open('cnnT_scaler.pkl', 'rb'))
+        CNN_T = tf.keras.models.load_model('model/cnn_T.h5')
+        scalerT = pickle.load(open('scaler/cnnT_scaler.pkl', 'rb'))
         #multiplied y 0.408 to convert Ra to mm/d
         features = pd.concat([df[['Tmin','Tmax', 'Tav']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
         features = split_sequences(features, n_steps=30)
@@ -198,7 +168,7 @@ if uploaded_file is not None:
         else:
             results=pd.concat([df['Date'][29:].reset_index(drop=True),
                     pd.DataFrame(EThs[29:], columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
-        fig = plot_results(results)
+        fig = plot_results(results,model)
         st.pyplot(fig)
         st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
         st.write(results)
@@ -207,8 +177,8 @@ if uploaded_file is not None:
                     "text/csv", key='download-csv')
 
     elif model == 'CNN_all':
-        CNN_all = tf.keras.models.load_model('cnn_all.h5')
-        scalerAll = pickle.load(open('cnnAll_scaler.pkl', 'rb'))
+        CNN_all = tf.keras.models.load_model('model/cnn_all.h5')
+        scalerAll = pickle.load(open('scaler/cnnAll_scaler.pkl', 'rb'))
         #multiplied y 0.408 to convert Ra to mm/d
         features = pd.concat([df[['Tmin','Tmax', 'Tav','RH', 'U']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
         features = split_sequences(features, n_steps=30)
@@ -221,7 +191,7 @@ if uploaded_file is not None:
         else:
             results=pd.concat([df['Date'][29:].reset_index(drop=True),
                     pd.DataFrame(EThs[29:], columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
-        fig = plot_results(results)
+        fig = plot_results(results,model)
         st.pyplot(fig)
         st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
         st.write(results)
@@ -261,15 +231,16 @@ else:
         import tensorflow as tf
         model = st. selectbox('Select Model', models)
         if model == 'ANN_T':
-            ANN_T = tf.keras.models.load_model('ANN_T.h5')
-            scalerT = pickle.load(open('annT_scaler.pkl', 'rb'))
+            ANN_T = tf.keras.models.load_model('model/ANN_T.h5')
+            scalerT = pickle.load(open('scaler/annT_scaler.pkl', 'rb'))
             #multiplied y 0.408 to convert Ra to mm/d
             features = pd.concat([df[['Tmin','Tmax', 'Tav']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
             features = scalerT.transform(features)
             y_pred = ANN_T.predict(features)
             st.markdown('**Results for demo data**')
             results=pd.concat([df['Date'], pd.DataFrame(EThs, columns=['EThs']), pd.DataFrame(y_pred, columns=[model])],axis=1)
-            fig = plot_results(results)
+            
+            fig = plot_results(results,model)
             st.pyplot(fig)
             st.markdown('$ET_{HS}$ = Hargreaves & Samani model')
             st.write(results)
