@@ -7,7 +7,7 @@ st.markdown("""This application makes estimations of reference evapotranspiratio
             The code loads pre-trained models, prepares input features, makes predictions, and displays the results.
              It also provides a download button to download the results as a CSV file.
             """)
-st.markdown('> **Units for Columns**: Tmin, Tmax, and Ta are in [$°C$], Relative Humidity, RH [$%$], daily average windspeed, U [$m s^{-1}$].')
+st.markdown('> **Units for Columns**: Tmin, Tmax, and Ta are in [$°C$], Relative Humidity, RH [%], daily average windspeed, U [$m s^{-1}$].')
 with st.sidebar:
     st.subheader('1. Upload your CSV file')
     uploaded_file = st.file_uploader("Make sure coloumns are named - Date, Tmin, Tmax, Tav, RH, and U", type=["csv"],
