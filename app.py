@@ -107,7 +107,7 @@ if uploaded_file is not None:
 
     elif model == 'LSTM_T':
         LSTM_T = tf.keras.models.load_model('model/lstm_T.h5')
-        scalerT = pickle.load(open('scaler/lstmT_scaler.pkl', 'rb'))
+        scalerT = pickle.load(open('scaler/dlT_scaler.pkl', 'rb'))
         #multiplied y 0.408 to convert Ra to mm/d
         features = pd.concat([df[['Tmin','Tmax', 'Tav']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
         features = split_sequences(features, n_steps=30)
@@ -131,7 +131,7 @@ if uploaded_file is not None:
 
     elif model == 'LSTM_all':
         LSTM_all = tf.keras.models.load_model('model/lstm_all.h5')
-        scalerAll = pickle.load(open('scaler/lstmAll_scaler.pkl', 'rb'))
+        scalerAll = pickle.load(open('scaler/dlAll_scaler.pkl', 'rb'))
         #multiplied y 0.408 to convert Ra to mm/d
         features = pd.concat([df[['Tmin','Tmax', 'Tav','RH', 'U']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
         features = split_sequences(features, n_steps=30)
@@ -154,7 +154,7 @@ if uploaded_file is not None:
     
     elif model == 'CNN_T':
         CNN_T = tf.keras.models.load_model('model/cnn_T.h5')
-        scalerT = pickle.load(open('scaler/cnnT_scaler.pkl', 'rb'))
+        scalerT = pickle.load(open('scaler/dlT_scaler.pkl', 'rb'))
         #multiplied y 0.408 to convert Ra to mm/d
         features = pd.concat([df[['Tmin','Tmax', 'Tav']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
         features = split_sequences(features, n_steps=30)
@@ -178,7 +178,7 @@ if uploaded_file is not None:
 
     elif model == 'CNN_all':
         CNN_all = tf.keras.models.load_model('model/cnn_all.h5')
-        scalerAll = pickle.load(open('scaler/cnnAll_scaler.pkl', 'rb'))
+        scalerAll = pickle.load(open('scaler/dlAll_scaler.pkl', 'rb'))
         #multiplied y 0.408 to convert Ra to mm/d
         features = pd.concat([df[['Tmin','Tmax', 'Tav','RH', 'U']], pd.Series(Ra)*0.408], axis=1).rename({0:'Ra'}, axis=1).values
         features = split_sequences(features, n_steps=30)
