@@ -260,6 +260,7 @@ else:
                 "Download Results", csv, "file.csv", "text/csv", key="download-csv"
             )
 
+st.subheader("Citation")
 st.markdown(
     """
         If you use this application in your research, please cite:
