@@ -34,13 +34,6 @@ with st.sidebar:
     location = pd.DataFrame({"latitude": [lat], "longitude": [lon]})
     st.map(location, zoom=4)
     st.subheader("Citation")
-    st.markdown(
-        """
-        If you use this application in your research, please cite:
-        
-        Singh, A., Haghverdi, A., 2023. Development and evaluation of temperature-based deep learning models to estimate reference evapotranspiration. *Artificial Intelligence in Agriculture*. [https://doi.org/10.1016/j.aiia.2023.08.003](https://doi.org/10.1016/j.aiia.2023.08.003)
-        """
-    )
 
 
 def get_available_models(df):
@@ -266,3 +259,11 @@ else:
             st.download_button(
                 "Download Results", csv, "file.csv", "text/csv", key="download-csv"
             )
+
+st.markdown(
+    """
+        If you use this application in your research, please cite:
+        
+        Singh, A., Haghverdi, A., 2023. Development and evaluation of temperature-based deep learning models to estimate reference evapotranspiration. *Artificial Intelligence in Agriculture*. [https://doi.org/10.1016/j.aiia.2023.08.003](https://doi.org/10.1016/j.aiia.2023.08.003)
+        """
+)
